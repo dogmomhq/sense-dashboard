@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sense Ops Dashboard</title>
+<style>
+:root { --bg: #0f1117; --card: #1a1d27; --border: #2a2d37; --text: #e4e4e7; --muted: #8b8d97; --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --purple: #a855f7; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.header .dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.refresh-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.refresh-btn:hover { border-color: var(--blue); color: var(--blue); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px 24px; }
+.metric { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.metric .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+.metric .value { font-size: 26px; font-weight: 600; }
+.metric .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.section { padding: 8px 24px 16px; }
+.section h2 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.oracle-bar { display: flex; gap: 12px; flex-wrap: wrap; }
+.oracle-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; flex: 1; min-width: 200px; }
+.oracle-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.oracle-card .val { font-size: 20px; font-weight: 600; margin-top: 4px; }
+.oracle-card .val.warn { color: var(--amber); }
+.oracle-card .val.danger { color: var(--red); }
+.oracle-card .val.ok { color: var(--green); }
+.alerts { padding: 0 24px 12px; }
+.alert { background: #2d1b1b; border: 1px solid #5c2626; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: #fca5a5; display: flex; align-items: center; gap: 8px; }
+.alert.warn { background: #2d2510; border-color: #5c4a1a; color: #fcd34d; }
+.alert.ok { background: #0f2918; border-color: #1a5c2e; color: #86efac; display: none; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; max-height: 500px; overflow-y: auto; }
+th { text-align: left; padding: 8px 10px; background: #12141c; color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 1; }
+td { padding: 7px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.badge.win { background: #0f2918; color: #86efac; }
+.badge.loss { background: #2d1b1b; color: #fca5a5; }
+.badge.draw { background: #1e1e2e; color: #a5b4fc; }
+.badge.settled { background: #0f2918; color: #86efac; }
+.badge.matched { background: #2d2510; color: #fcd34d; }
+.badge.expired { background: #1e1e2e; color: #8b8d97; }
+.badge.settling { background: #1b1d2d; color: #93c5fd; }
+.badge.open { background: #1b2d2d; color: #5eead4; }
+.badge.paid { background: #2d1b2d; color: #d8b4fe; }
+.badge.free { background: #1e1e2e; color: #8b8d97; }
+.tx-link { color: var(--blue); text-decoration: none; font-family: monospace; font-size: 11px; }
+.tx-link:hover { text-decoration: underline; }
+.mono { font-family: monospace; font-size: 11px; }
+.tabs { display: flex; gap: 0; padding: 0 24px; }
+.tab { padding: 8px 16px; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--text); border-bottom-color: var(--blue); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.error-log { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto; }
+.error-item { padding: 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.error-item:last-child { border-bottom: none; }
+.error-item .time { color: var(--muted); font-size: 11px; }
+.error-item .msg { color: var(--red); margin-top: 4px; font-family: monospace; font-size: 11px; word-break: break-all; }
+.events-log { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.8; }
+.events-log .ev { color: var(--muted); }
+.events-log .ev .t { color: #6b7280; }
+.stuck-alert { background: #2d1b1b; border: 1px solid #5c2626; border-radius: 8px; padding: 12px; }
+.stuck-item { font-size: 12px; color: #fca5a5; padding: 4px 0; }
+.loading { text-align: center; padding: 60px; color: var(--muted); font-size: 14px; }
+.auto-refresh { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Sense ops</h1>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span class="auto-refresh" id="countdown"></span>
+    <div class="status" id="serverStatus"><span class="dot"></span> Loading...</div>
+    <button class="refresh-btn" onclick="loadDashboard()">Refresh</button>
+  </div>
+</div>
+
+<div id="alerts" class="alerts"></div>
+<div id="content"><div class="loading">Loading dashboard...</div></div>
+
+<script>
+const API = 'https://web-production-8866e.up.railway.app';
+const SOLSCAN = 'https://solscan.io/tx/';
+const SOLSCAN_ACCT = 'https://solscan.io/account/';
+const DEVNET = '?cluster=devnet';
+let data = null;
+let refreshTimer = null;
+let countdown = 30;
+
+function fmt(n) { return n != null ? n.toLocaleString() : '—'; }
+function ago(ts) {
+  if (!ts) return '—';
+  const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+function shortAddr(a) { return a ? a.slice(0,4)+'..'+a.slice(-4) : '—'; }
+function solscanTx(sig) {
+  if (!sig) return '—';
+  return '<a class="tx-link" href="'+SOLSCAN+sig+DEVNET+'" target="_blank">'+sig.slice(0,8)+'...</a>';
+}
+function solscanAcct(addr) {
+  if (!addr) return '—';
+  return '<a class="tx-link" href="'+SOLSCAN_ACCT+addr+DEVNET+'" target="_blank">'+shortAddr(addr)+'</a>';
+}
+function badge(text, cls) { return '<span class="badge '+(cls||text)+'">'+text+'</span>'; }
+
+async function loadDashboard() {
+  countdown = 30;
+  try {
+    const r = await fetch(API + '/api/dashboard');
+    data = await r.json();
+    if (data.error) throw new Error(data.error);
+    render(data);
+    document.getElementById('serverStatus').innerHTML = '<span class="dot green"></span> Connected';
+  } catch(e) {
+    document.getElementById('serverStatus').innerHTML = '<span class="dot red"></span> Error: '+e.message;
+    document.getElementById('content').innerHTML = '<div class="loading" style="color:#ef4444">Failed to load: '+e.message+'</div>';
+  }
+}
+
+function render(d) {
+  // Alerts
+  let alerts = '';
+  if (d.oracle.balanceSOL && parseFloat(d.oracle.balanceSOL) < 0.05) {
+    alerts += '<div class="alert">Oracle SOL critically low: '+d.oracle.balanceSOL+' SOL — settlements will fail soon</div>';
+  } else if (d.oracle.balanceSOL && parseFloat(d.oracle.balanceSOL) < 0.1) {
+    alerts += '<div class="alert warn">Oracle SOL low: '+d.oracle.balanceSOL+' SOL ('+d.oracle.estimatedSettlesLeft+' settles left)</div>';
+  }
+  if (d.oracle.rpcError) {
+    alerts += '<div class="alert">RPC Error: '+d.oracle.rpcError+'</div>';
+  }
+  if (!d.oracle.active) {
+    alerts += '<div class="alert">Oracle is NOT active — no settlements will process</div>';
+  }
+  if (d.stuckGames && d.stuckGames.length > 0) {
+    alerts += '<div class="alert warn">'+d.stuckGames.length+' stuck game(s) detected — games in matched/settling state too long</div>';
+  }
+  if (d.server.settleErrors && d.server.settleErrors.length > 0) {
+    alerts += '<div class="alert warn">'+d.server.settleErrors.length+' recent settlement error(s)</div>';
+  }
+  if (d.queue.settling > 0) {
+    alerts += '<div class="alert warn">'+d.queue.settling+' game(s) stuck in "settling" status</div>';
+  }
+  document.getElementById('alerts').innerHTML = alerts;
+
+  // Main content
+  let html = '';
+
+  // Metrics row
+  html += '<div class="grid">';
+  html += metric('Total games', fmt(d.totals.totalGames), fmt(d.totals.gamesToday)+' today');
+  html += metric('Last hour', fmt(d.totals.gamesLastHour), '');
+  html += metric('Players', fmt(d.totals.uniquePlayers), fmt(d.totals.paidGames)+' paid / '+fmt(d.totals.freeGames)+' free');
+  html += metric('Total wagered', '$'+(d.totals.totalWageredCents/100).toFixed(2), 'USDC equivalent');
+  html += metric('Win/Draw/Loss', d.resultDistribution.wins+' / '+d.resultDistribution.draws+' / '+d.resultDistribution.losses, '');
+  html += metric('Active now', fmt(d.queue.activeMatched+d.queue.openWaiting), fmt(d.server.wsConnections)+' WS connections');
+  html += '</div>';
+
+  // Oracle section
+  html += '<div class="section"><h2>Oracle & chain</h2><div class="oracle-bar">';
+  const solClass = parseFloat(d.oracle.balanceSOL||0) < 0.05 ? 'danger' : parseFloat(d.oracle.balanceSOL||0) < 0.1 ? 'warn' : 'ok';
+  html += oracleCard('Oracle SOL', d.oracle.balanceSOL || '—', solClass, '~'+fmt(d.oracle.estimatedSettlesLeft)+' settles left');
+  html += oracleCard('Oracle wallet', solscanAcct(d.oracle.wallet), 'ok', '');
+  html += oracleCard('Server uptime', formatUptime(d.server.uptime), 'ok', fmt(d.server.memoryMB)+'MB RAM');
+  html += oracleCard('Queue', fmt(d.queue.settled)+' settled / '+fmt(d.queue.expired)+' expired', 'ok', fmt(d.queue.activeMatched)+' active, '+fmt(d.queue.openWaiting)+' open');
+  html += '</div></div>';
+
+  // Tabs
+  html += '<div class="tabs">';
+  html += '<div class="tab active" onclick="switchTab(this,\'tab-matches\')">Recent games</div>';
+  html += '<div class="tab" onclick="switchTab(this,\'tab-queue\')">Queue log</div>';
+  html += '<div class="tab" onclick="switchTab(this,\'tab-movements\')">Token movements</div>';
+  html += '<div class="tab" onclick="switchTab(this,\'tab-errors\')">Errors & events</div>';
+  html += '</div>';
+
+  // Tab: Recent matches
+  html += '<div class="section tab-content active" id="tab-matches">';
+  html += '<div class="table-wrap"><table><thead><tr>';
+  html += '<th>Time</th><th>Match</th><th>Mode</th><th>Player A</th><th>Player B</th><th>Result</th><th>Reason</th><th>Payout</th><th>Tx</th>';
+  html += '</tr></thead><tbody>';
+  for (const m of (d.recentMatches||[])) {
+    html += '<tr>';
+    html += '<td>'+ago(m.settled_at)+'</td>';
+    html += '<td class="mono">'+m.match_id+'</td>';
+    html += '<td>'+badge(m.mode)+'</td>';
+    html += '<td title="'+(m.wallet_a||'')+'">'+m.player_a+'</td>';
+    html += '<td title="'+(m.wallet_b||'')+'">'+m.player_b+'</td>';
+    html += '<td>'+badge(m.result_a)+' / '+badge(m.result_b)+'</td>';
+    html += '<td>'+m.reason+'</td>';
+    html += '<td>'+(m.payout_a/100).toFixed(2)+' / '+(m.payout_b/100).toFixed(2)+'</td>';
+    html += '<td>'+solscanTx(m.tx_hash)+'</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table></div></div>';
+
+  // Tab: Queue log
+  html += '<div class="section tab-content" id="tab-queue">';
+  html += '<div class="table-wrap"><table><thead><tr>';
+  html += '<th>Time</th><th>Match</th><th>Status</th><th>Mode</th><th>Player A</th><th>Player B</th><th>A ans</th><th>B ans</th><th>Chain ID</th>';
+  html += '</tr></thead><tbody>';
+  for (const q of (d.recentQueue||[])) {
+    html += '<tr>';
+    html += '<td>'+ago(q.created_at)+'</td>';
+    html += '<td class="mono">'+q.match_id+'</td>';
+    html += '<td>'+badge(q.status)+'</td>';
+    html += '<td>'+badge(q.payment_mode||'none', q.payment_mode==='solana'?'paid':'free')+'</td>';
+    html += '<td>'+q.player_a+'</td>';
+    html += '<td>'+(q.player_b||'—')+'</td>';
+    html += '<td>'+(q.answer_a !== null ? q.answer_a : '—')+'</td>';
+    html += '<td>'+(q.answer_b !== null ? q.answer_b : '—')+'</td>';
+    html += '<td class="mono">'+(q.chain_game_id||'—')+'</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table></div></div>';
+
+  // Tab: Token movements
+  html += '<div class="section tab-content" id="tab-movements">';
+  if ((d.recentMovements||[]).length === 0) {
+    html += '<div style="color:var(--muted);padding:20px;text-align:center;font-size:13px">No token movements recorded yet</div>';
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr>';
+    html += '<th>Time</th><th>Type</th><th>Amount</th><th>From</th><th>To</th><th>Tx</th>';
+    html += '</tr></thead><tbody>';
+    for (const mv of (d.recentMovements||[])) {
+      html += '<tr>';
+      html += '<td>'+ago(mv.created_at)+'</td>';
+      html += '<td>'+badge(mv.type||mv.movement_type||'—')+'</td>';
+      html += '<td>'+(mv.amount||mv.amount_cents||'—')+'</td>';
+      html += '<td>'+shortAddr(mv.from_wallet||mv.player)+'</td>';
+      html += '<td>'+shortAddr(mv.to_wallet||'')+'</td>';
+      html += '<td>'+solscanTx(mv.tx_hash||mv.tx_signature)+'</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+
+  // Tab: Errors & events
+  html += '<div class="section tab-content" id="tab-errors">';
+  html += '<h2 style="border:none;padding-top:0;margin-bottom:8px">Settlement errors</h2>';
+  if ((d.server.settleErrors||[]).length === 0) {
+    html += '<div style="color:var(--green);padding:10px;font-size:13px">No settlement errors</div>';
+  } else {
+    html += '<div class="error-log">';
+    for (const e of d.server.settleErrors) {
+      html += '<div class="error-item"><div class="time">'+new Date(e.timestamp).toLocaleString()+' — Game: '+(e.gameId||'?')+'</div><div class="msg">'+e.error+'</div></div>';
+    }
+    html += '</div>';
+  }
+
+  // Stuck games
+  if ((d.stuckGames||[]).length > 0) {
+    html += '<h2 style="border:none;padding-top:12px;margin-bottom:8px">Stuck games</h2>';
+    html += '<div class="stuck-alert">';
+    for (const g of d.stuckGames) {
+      html += '<div class="stuck-item">'+g.match_id+' — status: '+g.status+' — A: '+(g.a_answered?'answered':'waiting')+', B: '+(g.b_answered?'answered':'waiting')+' — created '+ago(g.created_at)+'</div>';
+    }
+    html += '</div>';
+  }
+
+  // Recent events
+  html += '<h2 style="border:none;padding-top:12px;margin-bottom:8px">Recent server events</h2>';
+  html += '<div class="events-log">';
+  for (const ev of (d.server.recentEvents||[]).reverse()) {
+    html += '<div class="ev"><span class="t">'+new Date(ev.t).toLocaleTimeString()+'</span> '+ev.msg+'</div>';
+  }
+  if ((d.server.recentEvents||[]).length === 0) html += '<div class="ev" style="color:var(--muted)">No events since last restart</div>';
+  html += '</div>';
+  html += '</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function metric(label, value, sub) {
+  return '<div class="metric"><div class="label">'+label+'</div><div class="value">'+value+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+}
+function oracleCard(label, val, cls, sub) {
+  return '<div class="oracle-card"><div class="label">'+label+'</div><div class="val '+cls+'">'+val+'</div>'+(sub?'<div class="sub" style="color:var(--muted);font-size:12px;margin-top:4px">'+sub+'</div>':'')+'</div>';
+}
+function formatUptime(s) {
+  if (s < 60) return s+'s';
+  if (s < 3600) return Math.floor(s/60)+'m '+s%60+'s';
+  return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
+}
+function switchTab(el, id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+// Auto-refresh every 30s
+function startCountdown() {
+  setInterval(() => {
+    countdown--;
+    if (countdown <= 0) { loadDashboard(); countdown = 30; }
+    document.getElementById('countdown').textContent = 'Auto-refresh in '+countdown+'s';
+  }, 1000);
+}
+
+loadDashboard();
+startCountdown();
+</script>
+</body>
+</html>
