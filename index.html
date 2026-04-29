@@ -184,12 +184,34 @@ function render(d) {
   html += '<div class="tab" onclick="switchTab(this,\'tab-errors\')">Errors & events</div>';
   html += '</div>';
 
+  // Build movement lookup by game_id
+  const mvByGame = {};
+  for (const mv of (d.gameMovements||[])) {
+    if (!mvByGame[mv.game_id]) mvByGame[mv.game_id] = [];
+    mvByGame[mv.game_id].push(mv);
+  }
+
+  // Also build a match_id -> chain_game_id lookup from queue
+  const matchToChain = {};
+  for (const q of (d.recentQueue||[])) {
+    if (q.chain_game_id) matchToChain[q.match_id] = q.chain_game_id;
+  }
+
   // Tab: Recent matches
   html += '<div class="section tab-content active" id="tab-matches">';
   html += '<div class="table-wrap"><table><thead><tr>';
-  html += '<th>Time</th><th>Match</th><th>Mode</th><th>Player A</th><th>Player B</th><th>Result</th><th>Reason</th><th>Payout</th><th>Tx</th>';
+  html += '<th>Time</th><th>Match</th><th>Mode</th><th>Player A</th><th>Player B</th><th>Result</th><th>A deposit</th><th>B deposit</th><th>Payout</th>';
   html += '</tr></thead><tbody>';
   for (const m of (d.recentMatches||[])) {
+    const chainId = matchToChain[m.match_id];
+    const mvs = chainId ? (mvByGame[chainId]||[]) : [];
+    const createMv = mvs.find(x => x.type === 'create');
+    const joinMv = mvs.find(x => x.type === 'join');
+    const settleMv = mvs.find(x => x.type === 'settle' || x.type === 'settle_draw');
+
+    // Format deposit amounts (raw USDC has 6 decimals)
+    const fmtUsdc = (raw) => raw ? (parseInt(raw)/1e6).toFixed(2) : '—';
+
     html += '<tr>';
     html += '<td>'+ago(m.settled_at)+'</td>';
     html += '<td class="mono">'+m.match_id+'</td>';
@@ -197,9 +219,36 @@ function render(d) {
     html += '<td title="'+(m.wallet_a||'')+'">'+m.player_a+'</td>';
     html += '<td title="'+(m.wallet_b||'')+'">'+m.player_b+'</td>';
     html += '<td>'+badge(m.result_a)+' / '+badge(m.result_b)+'</td>';
-    html += '<td>'+m.reason+'</td>';
-    html += '<td>'+(m.payout_a/100).toFixed(2)+' / '+(m.payout_b/100).toFixed(2)+'</td>';
-    html += '<td>'+solscanTx(m.tx_hash)+'</td>';
+
+    // A deposit (create_game tx)
+    if (createMv) {
+      html += '<td>'+fmtUsdc(createMv.amount_raw)+' USDC '+solscanTx(createMv.tx_hash)+'</td>';
+    } else if (m.mode === 'paid') {
+      html += '<td style="color:var(--red)">missing</td>';
+    } else {
+      html += '<td style="color:var(--muted)">free</td>';
+    }
+
+    // B deposit (join_game tx)
+    if (joinMv) {
+      html += '<td>'+fmtUsdc(joinMv.amount_raw)+' USDC '+solscanTx(joinMv.tx_hash)+'</td>';
+    } else if (m.mode === 'paid') {
+      html += '<td style="color:var(--red)">missing</td>';
+    } else {
+      html += '<td style="color:var(--muted)">free</td>';
+    }
+
+    // Settlement payout
+    if (settleMv) {
+      const winner = m.result_a === 'win' ? m.player_a : m.result_b === 'win' ? m.player_b : 'draw';
+      const label = winner === 'draw' ? 'refund' : winner;
+      html += '<td>'+fmtUsdc(settleMv.amount_raw)+' → '+label+' '+solscanTx(settleMv.tx_hash)+'</td>';
+    } else if (m.mode === 'paid') {
+      html += '<td style="color:var(--amber)">pending</td>';
+    } else {
+      html += '<td style="color:var(--muted)">—</td>';
+    }
+
     html += '</tr>';
   }
   html += '</tbody></table></div></div>';
