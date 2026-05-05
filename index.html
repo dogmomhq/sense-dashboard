@@ -1,365 +1,979 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sense Ops Dashboard</title>
-<style>
-:root { --bg: #0f1117; --card: #1a1d27; --border: #2a2d37; --text: #e4e4e7; --muted: #8b8d97; --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --purple: #a855f7; }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-.header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.header h1 { font-size: 18px; font-weight: 600; }
-.header .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.header .dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
-.dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-.refresh-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-.refresh-btn:hover { border-color: var(--blue); color: var(--blue); }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px 24px; }
-.metric { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
-.metric .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
-.metric .value { font-size: 26px; font-weight: 600; }
-.metric .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.section { padding: 8px 24px 16px; }
-.section h2 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
-.oracle-bar { display: flex; gap: 12px; flex-wrap: wrap; }
-.oracle-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; flex: 1; min-width: 200px; }
-.oracle-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
-.oracle-card .val { font-size: 20px; font-weight: 600; margin-top: 4px; }
-.oracle-card .val.warn { color: var(--amber); }
-.oracle-card .val.danger { color: var(--red); }
-.oracle-card .val.ok { color: var(--green); }
-.alerts { padding: 0 24px 12px; }
-.alert { background: #2d1b1b; border: 1px solid #5c2626; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: #fca5a5; display: flex; align-items: center; gap: 8px; }
-.alert.warn { background: #2d2510; border-color: #5c4a1a; color: #fcd34d; }
-.alert.ok { background: #0f2918; border-color: #1a5c2e; color: #86efac; display: none; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; max-height: 500px; overflow-y: auto; }
-th { text-align: left; padding: 8px 10px; background: #12141c; color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 1; }
-td { padding: 7px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
-tr:hover td { background: rgba(255,255,255,0.02); }
-.badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
-.badge.win { background: #0f2918; color: #86efac; }
-.badge.loss { background: #2d1b1b; color: #fca5a5; }
-.badge.draw { background: #1e1e2e; color: #a5b4fc; }
-.badge.settled { background: #0f2918; color: #86efac; }
-.badge.matched { background: #2d2510; color: #fcd34d; }
-.badge.expired { background: #1e1e2e; color: #8b8d97; }
-.badge.settling { background: #1b1d2d; color: #93c5fd; }
-.badge.open { background: #1b2d2d; color: #5eead4; }
-.badge.paid { background: #2d1b2d; color: #d8b4fe; }
-.badge.free { background: #1e1e2e; color: #8b8d97; }
-.tx-link { color: var(--blue); text-decoration: none; font-family: monospace; font-size: 11px; }
-.tx-link:hover { text-decoration: underline; }
-.mono { font-family: monospace; font-size: 11px; }
-.tabs { display: flex; gap: 0; padding: 0 24px; }
-.tab { padding: 8px 16px; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
-.tab.active { color: var(--text); border-bottom-color: var(--blue); }
-.tab-content { display: none; }
-.tab-content.active { display: block; }
-.error-log { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto; }
-.error-item { padding: 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
-.error-item:last-child { border-bottom: none; }
-.error-item .time { color: var(--muted); font-size: 11px; }
-.error-item .msg { color: var(--red); margin-top: 4px; font-family: monospace; font-size: 11px; word-break: break-all; }
-.events-log { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.8; }
-.events-log .ev { color: var(--muted); }
-.events-log .ev .t { color: #6b7280; }
-.stuck-alert { background: #2d1b1b; border: 1px solid #5c2626; border-radius: 8px; padding: 12px; }
-.stuck-item { font-size: 12px; color: #fca5a5; padding: 4px 0; }
-.loading { text-align: center; padding: 60px; color: var(--muted); font-size: 14px; }
-.auto-refresh { font-size: 11px; color: var(--muted); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sense Game Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --primary: #0066cc;
+            --success: #00aa44;
+            --warning: #ff9900;
+            --danger: #cc0000;
+            --border: #e0e0e0;
+            --bg-light: #f8f9fa;
+            --text: #333;
+            --text-light: #666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #fff;
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+            color: var(--text);
+        }
+
+        .subtitle {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 0.95rem;
+            color: var(--text-light);
+        }
+
+        .last-updated {
+            font-weight: 500;
+        }
+
+        .refresh-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0052a3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .alert.danger {
+            background-color: #fee;
+            border-color: var(--danger);
+            color: #d00;
+        }
+
+        .alert.warning {
+            background-color: #fef5e7;
+            border-color: var(--warning);
+            color: #9c6500;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: box-shadow 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .card-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .card-detail {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background-color: var(--success);
+        }
+
+        .status-indicator.inactive {
+            background-color: var(--danger);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .stat-box {
+            background-color: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-box .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-light);
+            margin-bottom: 6px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .stat-box .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .chart-container {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            max-width: 400px;
+        }
+
+        .table-container {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .table-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background-color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 8px;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+            color: var(--text);
+            background-color: white;
+        }
+
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background-color: var(--bg-light);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge.win {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .badge.loss {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge.draw {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+
+        .badge.pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .amount {
+            font-weight: 600;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .amount.positive {
+            color: var(--success);
+        }
+
+        .amount.negative {
+            color: var(--danger);
+        }
+
+        .link-btn {
+            display: inline-block;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .link-btn:hover {
+            color: #0052a3;
+            text-decoration: underline;
+        }
+
+        .short-wallet {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .queue-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .queue-stat {
+            background-color: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .queue-stat .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-light);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .queue-stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .movements-section {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .movements-group {
+            margin-bottom: 15px;
+            padding: 12px;
+            background-color: white;
+            border-radius: 4px;
+            border-left: 3px solid var(--border);
+        }
+
+        .movements-group.settled {
+            border-left-color: var(--success);
+        }
+
+        .movements-group.cancelled {
+            border-left-color: var(--warning);
+        }
+
+        .movements-group.locked {
+            border-left-color: var(--primary);
+        }
+
+        .movement-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .movement-item {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin: 4px 0;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .card-value {
+                font-size: 1.5rem;
+            }
+
+            .stat-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-wrapper {
+                max-width: 100%;
+                height: 250px;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            th, td {
+                padding: 8px 4px;
+            }
+
+            .filter-buttons {
+                flex-direction: column;
+            }
+
+            .filter-btn {
+                flex: 1;
+            }
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+
+        .loading .spinner {
+            width: 32px;
+            height: 32px;
+            border-width: 3px;
+            border-color: var(--primary);
+            border-top-color: transparent;
+            margin-right: 12px;
+        }
+    </style>
 </head>
 <body>
-<div class="header">
-  <h1>Sense ops</h1>
-  <div style="display:flex;align-items:center;gap:16px;">
-    <span class="auto-refresh" id="countdown"></span>
-    <div class="status" id="serverStatus"><span class="dot"></span> Loading...</div>
-    <button class="refresh-btn" onclick="loadDashboard()">Refresh</button>
-  </div>
-</div>
+    <div id="app">
+        <div class="loading">
+            <div class="spinner"></div>
+            Loading dashboard...
+        </div>
+    </div>
 
-<div id="alerts" class="alerts"></div>
-<div id="content"><div class="loading">Loading dashboard...</div></div>
+    <script>
+        const API_URL = 'https://web-production-8866e.up.railway.app/api/dashboard';
+        let refreshInterval = null;
+        let chartInstance = null;
 
-<script>
-const API = 'https://web-production-8866e.up.railway.app';
-const SOLSCAN = 'https://solscan.io/tx/';
-const SOLSCAN_ACCT = 'https://solscan.io/account/';
-const DEVNET = '?cluster=devnet';
-let data = null;
-let refreshTimer = null;
-let countdown = 30;
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch(`${API_URL}?limit=50`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
 
-function fmt(n) { return n != null ? n.toLocaleString() : '—'; }
-function ago(ts) {
-  if (!ts) return '—';
-  const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-  if (s < 60) return s + 's ago';
-  if (s < 3600) return Math.floor(s/60) + 'm ago';
-  if (s < 86400) return Math.floor(s/3600) + 'h ago';
-  return Math.floor(s/86400) + 'd ago';
-}
-function shortAddr(a) { return a ? a.slice(0,4)+'..'+a.slice(-4) : '—'; }
-function solscanTx(sig) {
-  if (!sig) return '—';
-  return '<a class="tx-link" href="'+SOLSCAN+sig+DEVNET+'" target="_blank">'+sig.slice(0,8)+'...</a>';
-}
-function solscanAcct(addr) {
-  if (!addr) return '—';
-  return '<a class="tx-link" href="'+SOLSCAN_ACCT+addr+DEVNET+'" target="_blank">'+shortAddr(addr)+'</a>';
-}
-function badge(text, cls) { return '<span class="badge '+(cls||text)+'">'+text+'</span>'; }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
 
-async function loadDashboard() {
-  countdown = 30;
-  try {
-    const r = await fetch(API + '/api/dashboard');
-    data = await r.json();
-    if (data.error) throw new Error(data.error);
-    render(data);
-    document.getElementById('serverStatus').innerHTML = '<span class="dot green"></span> Connected';
-  } catch(e) {
-    document.getElementById('serverStatus').innerHTML = '<span class="dot red"></span> Error: '+e.message;
-    document.getElementById('content').innerHTML = '<div class="loading" style="color:#ef4444">Failed to load: '+e.message+'</div>';
-  }
-}
+                const data = await response.json();
+                renderDashboard(data);
+            } catch (error) {
+                console.error('Failed to fetch dashboard:', error);
+                document.getElementById('app').innerHTML = `
+                    <div class="loading">
+                        <div style="text-align: center;">
+                            <div style="color: var(--danger); margin-bottom: 12px;">
+                                Failed to load dashboard data
+                            </div>
+                            <div style="color: var(--text-light); font-size: 0.9rem; margin-bottom: 20px;">
+                                ${error.message}
+                            </div>
+                            <button onclick="location.reload()">Retry</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
 
-function render(d) {
-  // Alerts
-  let alerts = '';
-  if (d.oracle.balanceSOL && parseFloat(d.oracle.balanceSOL) < 0.05) {
-    alerts += '<div class="alert">Oracle SOL critically low: '+d.oracle.balanceSOL+' SOL — settlements will fail soon</div>';
-  } else if (d.oracle.balanceSOL && parseFloat(d.oracle.balanceSOL) < 0.1) {
-    alerts += '<div class="alert warn">Oracle SOL low: '+d.oracle.balanceSOL+' SOL ('+d.oracle.estimatedSettlesLeft+' settles left)</div>';
-  }
-  if (d.oracle.rpcError) {
-    alerts += '<div class="alert">RPC Error: '+d.oracle.rpcError+'</div>';
-  }
-  if (!d.oracle.active) {
-    alerts += '<div class="alert">Oracle is NOT active — no settlements will process</div>';
-  }
-  if (d.stuckGames && d.stuckGames.length > 0) {
-    alerts += '<div class="alert warn">'+d.stuckGames.length+' stuck game(s) detected — games in matched/settling state too long</div>';
-  }
-  if (d.server.settleErrors && d.server.settleErrors.length > 0) {
-    alerts += '<div class="alert warn">'+d.server.settleErrors.length+' recent settlement error(s)</div>';
-  }
-  if (d.queue.settling > 0) {
-    alerts += '<div class="alert warn">'+d.queue.settling+' game(s) stuck in "settling" status</div>';
-  }
-  document.getElementById('alerts').innerHTML = alerts;
+        function renderDashboard(data) {
+            const html = `
+                <div class="container">
+                    <header>
+                        <h1>Sense Game Dashboard</h1>
+                        <div class="subtitle">
+                            <span>Live from devnet</span>
+                            <span class="last-updated">Last updated: <span id="timestamp">${new Date().toLocaleTimeString()}</span></span>
+                        </div>
+                        <div class="refresh-controls">
+                            <button onclick="manualRefresh()" id="refreshBtn">Refresh Now</button>
+                            <span id="autoRefreshStatus" style="font-size: 0.85rem; color: var(--text-light);">Auto-refresh every 60s</span>
+                        </div>
+                    </header>
 
-  // Main content
-  let html = '';
+                    ${renderAlerts(data)}
 
-  // Metrics row
-  html += '<div class="grid">';
-  html += metric('Total games', fmt(d.totals.totalGames), fmt(d.totals.gamesToday)+' today');
-  html += metric('Last hour', fmt(d.totals.gamesLastHour), '');
-  html += metric('Players', fmt(d.totals.uniquePlayers), fmt(d.totals.paidGames)+' paid / '+fmt(d.totals.freeGames)+' free');
-  html += metric('Total wagered', '$'+(d.totals.totalWageredCents/100).toFixed(2), 'USDC equivalent');
-  html += metric('Win/Draw/Loss', d.resultDistribution.wins+' / '+d.resultDistribution.draws+' / '+d.resultDistribution.losses, '');
-  html += metric('Active now', fmt(d.queue.activeMatched+d.queue.openWaiting), fmt(d.server.wsConnections)+' WS connections');
-  html += '</div>';
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 1rem; margin-bottom: 15px; color: var(--text);">Oracle Status</h2>
+                        <div class="stat-row" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                            <div class="stat-box">
+                                <div class="label">SOL Balance</div>
+                                <div class="value" style="font-size: 1.6rem; color: var(--text);">${(data.oracle?.solBalance || 0).toFixed(3)}</div>
+                                <div class="card-detail">Oracle Wallet</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Est. Settles Left</div>
+                                <div class="value" style="font-size: 1.6rem; color: var(--text);">${Math.floor((data.oracle?.solBalance || 0) / 0.00625)}</div>
+                                <div class="card-detail">~625K SOL per settle</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Status</div>
+                                <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <span class="status-indicator ${(data.oracle?.solBalance || 0) > 0.05 ? 'active' : 'inactive'}"></span>
+                                    <span style="font-weight: 600; color: ${(data.oracle?.solBalance || 0) > 0.05 ? 'var(--success)' : 'var(--danger)'}">${(data.oracle?.solBalance || 0) > 0.05 ? 'Operational' : 'Low Balance'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-  // Oracle section
-  html += '<div class="section"><h2>Oracle & chain</h2><div class="oracle-bar">';
-  const solClass = parseFloat(d.oracle.balanceSOL||0) < 0.05 ? 'danger' : parseFloat(d.oracle.balanceSOL||0) < 0.1 ? 'warn' : 'ok';
-  html += oracleCard('Oracle SOL', d.oracle.balanceSOL || '—', solClass, '~'+fmt(d.oracle.estimatedSettlesLeft)+' settles left');
-  html += oracleCard('Oracle wallet', solscanAcct(d.oracle.wallet), 'ok', '');
-  html += oracleCard('Server uptime', formatUptime(d.server.uptime), 'ok', fmt(d.server.memoryMB)+'MB RAM');
-  html += oracleCard('Queue', fmt(d.queue.settled)+' settled / '+fmt(d.queue.expired)+' expired', 'ok', fmt(d.queue.activeMatched)+' active, '+fmt(d.queue.openWaiting)+' open');
-  html += '</div></div>';
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 1rem; margin-bottom: 15px; color: var(--text);">Game Statistics</h2>
+                        <div class="stat-row">
+                            <div class="stat-box">
+                                <div class="label">Total Games</div>
+                                <div class="value" style="color: var(--primary);">${data.stats?.totalGames || 0}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Games Today</div>
+                                <div class="value" style="color: var(--primary);">${data.stats?.gamesToday || 0}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Unique Players</div>
+                                <div class="value" style="color: var(--primary);">${data.stats?.uniquePlayers || 0}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Total Wagered</div>
+                                <div class="value" style="color: var(--success);">$${((data.stats?.totalWageredCents || 0) / 100).toFixed(2)}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Paid Games</div>
+                                <div class="value" style="color: var(--primary);">${data.stats?.paidGames || 0}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Free Games</div>
+                                <div class="value" style="color: var(--primary);">${data.stats?.freeGames || 0}</div>
+                            </div>
+                        </div>
+                    </div>
 
-  // Tabs
-  html += '<div class="tabs">';
-  html += '<div class="tab active" onclick="switchTab(this,\'tab-matches\')">Recent games</div>';
-  html += '<div class="tab" onclick="switchTab(this,\'tab-queue\')">Queue log</div>';
-  html += '<div class="tab" onclick="switchTab(this,\'tab-movements\')">Token movements</div>';
-  html += '<div class="tab" onclick="switchTab(this,\'tab-errors\')">Errors & events</div>';
-  html += '</div>';
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 1rem; margin-bottom: 15px; color: var(--text);">Queue Status</h2>
+                        <div class="queue-stats">
+                            <div class="queue-stat">
+                                <div class="label">Total Entries</div>
+                                <div class="value">${data.queue?.total || 0}</div>
+                            </div>
+                            <div class="queue-stat">
+                                <div class="label">Settled</div>
+                                <div class="value" style="color: var(--success);">${data.queue?.settled || 0}</div>
+                            </div>
+                            <div class="queue-stat">
+                                <div class="label">Expired</div>
+                                <div class="value" style="color: var(--warning);">${data.queue?.expired || 0}</div>
+                            </div>
+                            <div class="queue-stat">
+                                <div class="label">Open Waiting</div>
+                                <div class="value" style="color: var(--primary);">${data.queue?.openWaiting || 0}</div>
+                            </div>
+                            <div class="queue-stat">
+                                <div class="label">Active Matched</div>
+                                <div class="value" style="color: var(--primary);">${data.queue?.activeMatched || 0}</div>
+                            </div>
+                        </div>
+                    </div>
 
-  // Build movement lookup by game_id
-  const mvByGame = {};
-  for (const mv of (d.gameMovements||[])) {
-    if (!mvByGame[mv.game_id]) mvByGame[mv.game_id] = [];
-    mvByGame[mv.game_id].push(mv);
-  }
+                    ${renderResultsChart(data.resultDistribution)}
 
-  // Also build a match_id -> chain_game_id lookup from queue
-  const matchToChain = {};
-  for (const q of (d.recentQueue||[])) {
-    if (q.chain_game_id) matchToChain[q.match_id] = q.chain_game_id;
-  }
+                    ${renderRecentMatches(data.matches || [])}
 
-  // Tab: Recent matches
-  html += '<div class="section tab-content active" id="tab-matches">';
-  html += '<div class="table-wrap"><table><thead><tr>';
-  html += '<th>Time</th><th>Match</th><th>Mode</th><th>Player A</th><th>Player B</th><th>Result</th><th>A deposit</th><th>B deposit</th><th>Payout</th>';
-  html += '</tr></thead><tbody>';
-  for (const m of (d.recentMatches||[])) {
-    const chainId = matchToChain[m.match_id];
-    const mvs = chainId ? (mvByGame[chainId]||[]) : [];
-    const createMv = mvs.find(x => x.type === 'create');
-    const joinMv = mvs.find(x => x.type === 'join');
-    const settleMv = mvs.find(x => x.type === 'settle' || x.type === 'settle_draw');
+                    ${renderOnChainMovements(data.tokenMovements || [])}
+                </div>
+            `;
 
-    // Format deposit amounts (raw USDC has 6 decimals)
-    const fmtUsdc = (raw) => raw ? (parseInt(raw)/1e6).toFixed(2) : '—';
+            document.getElementById('app').innerHTML = html;
+            setupCharts(data.resultDistribution);
+            startAutoRefresh();
+        }
 
-    html += '<tr>';
-    html += '<td>'+ago(m.settled_at)+'</td>';
-    html += '<td class="mono">'+m.match_id+'</td>';
-    html += '<td>'+badge(m.mode)+'</td>';
-    html += '<td title="'+(m.wallet_a||'')+'">'+m.player_a+'</td>';
-    html += '<td title="'+(m.wallet_b||'')+'">'+m.player_b+'</td>';
-    html += '<td>'+badge(m.result_a)+' / '+badge(m.result_b)+'</td>';
+        function renderAlerts(data) {
+            const alerts = [];
 
-    // A deposit (create_game tx)
-    if (createMv) {
-      html += '<td>'+fmtUsdc(createMv.amount_raw)+' USDC '+solscanTx(createMv.tx_hash)+'</td>';
-    } else if (m.mode === 'paid') {
-      html += '<td style="color:var(--red)">missing</td>';
-    } else {
-      html += '<td style="color:var(--muted)">free</td>';
-    }
+            // Check for stuck games
+            if ((data.stuckGames || 0) > 0) {
+                alerts.push(`
+                    <div class="alert danger">
+                        <strong>⚠ ${data.stuckGames} Stuck Games</strong> - Games waiting for opponent settlement. May need manual intervention.
+                    </div>
+                `);
+            }
 
-    // B deposit (join_game tx)
-    if (joinMv) {
-      html += '<td>'+fmtUsdc(joinMv.amount_raw)+' USDC '+solscanTx(joinMv.tx_hash)+'</td>';
-    } else if (m.mode === 'paid') {
-      html += '<td style="color:var(--red)">missing</td>';
-    } else {
-      html += '<td style="color:var(--muted)">free</td>';
-    }
+            // Check oracle balance
+            if ((data.oracle?.solBalance || 0) < 0.05) {
+                alerts.push(`
+                    <div class="alert danger">
+                        <strong>⚠ Low Oracle Balance</strong> - SOL balance below 0.05. Settlement may fail. Current: ${(data.oracle?.solBalance || 0).toFixed(4)} SOL
+                    </div>
+                `);
+            }
 
-    // Settlement payout
-    if (settleMv) {
-      const winner = m.result_a === 'win' ? m.player_a : m.result_b === 'win' ? m.player_b : 'draw';
-      const label = winner === 'draw' ? 'refund' : winner;
-      html += '<td>'+fmtUsdc(settleMv.amount_raw)+' → '+label+' '+solscanTx(settleMv.tx_hash)+'</td>';
-    } else if (m.mode === 'paid') {
-      html += '<td style="color:var(--amber)">pending</td>';
-    } else {
-      html += '<td style="color:var(--muted)">—</td>';
-    }
+            // Check queue health
+            if ((data.queue?.openWaiting || 0) > 5) {
+                alerts.push(`
+                    <div class="alert warning">
+                        <strong>ℹ High Queue Volume</strong> - ${data.queue?.openWaiting} players waiting for match. Matchmaking may be lagging.
+                    </div>
+                `);
+            }
 
-    html += '</tr>';
-  }
-  html += '</tbody></table></div></div>';
+            return alerts.length > 0 ? alerts.join('') : '';
+        }
 
-  // Tab: Queue log
-  html += '<div class="section tab-content" id="tab-queue">';
-  html += '<div class="table-wrap"><table><thead><tr>';
-  html += '<th>Time</th><th>Match</th><th>Status</th><th>Mode</th><th>Player A</th><th>Player B</th><th>A ans</th><th>B ans</th><th>Chain ID</th>';
-  html += '</tr></thead><tbody>';
-  for (const q of (d.recentQueue||[])) {
-    html += '<tr>';
-    html += '<td>'+ago(q.created_at)+'</td>';
-    html += '<td class="mono">'+q.match_id+'</td>';
-    html += '<td>'+badge(q.status)+'</td>';
-    html += '<td>'+badge(q.payment_mode||'none', q.payment_mode==='solana'?'paid':'free')+'</td>';
-    html += '<td>'+q.player_a+'</td>';
-    html += '<td>'+(q.player_b||'—')+'</td>';
-    html += '<td>'+(q.answer_a !== null ? q.answer_a : '—')+'</td>';
-    html += '<td>'+(q.answer_b !== null ? q.answer_b : '—')+'</td>';
-    html += '<td class="mono">'+(q.chain_game_id||'—')+'</td>';
-    html += '</tr>';
-  }
-  html += '</tbody></table></div></div>';
+        function renderResultsChart(distribution) {
+            if (!distribution) {
+                return '';
+            }
 
-  // Tab: Token movements
-  html += '<div class="section tab-content" id="tab-movements">';
-  if ((d.recentMovements||[]).length === 0) {
-    html += '<div style="color:var(--muted);padding:20px;text-align:center;font-size:13px">No token movements recorded yet</div>';
-  } else {
-    html += '<div class="table-wrap"><table><thead><tr>';
-    html += '<th>Time</th><th>Type</th><th>Amount</th><th>From</th><th>To</th><th>Tx</th>';
-    html += '</tr></thead><tbody>';
-    for (const mv of (d.recentMovements||[])) {
-      html += '<tr>';
-      html += '<td>'+ago(mv.created_at)+'</td>';
-      html += '<td>'+badge(mv.type||mv.movement_type||'—')+'</td>';
-      html += '<td>'+(mv.amount||mv.amount_cents||'—')+'</td>';
-      html += '<td>'+shortAddr(mv.from_wallet||mv.player)+'</td>';
-      html += '<td>'+shortAddr(mv.to_wallet||'')+'</td>';
-      html += '<td>'+solscanTx(mv.tx_hash||mv.tx_signature)+'</td>';
-      html += '</tr>';
-    }
-    html += '</tbody></table></div>';
-  }
-  html += '</div>';
+            return `
+                <div class="chart-container">
+                    <div class="chart-title">Result Distribution</div>
+                    <div class="chart-wrapper">
+                        <canvas id="resultChart"></canvas>
+                    </div>
+                </div>
+            `;
+        }
 
-  // Tab: Errors & events
-  html += '<div class="section tab-content" id="tab-errors">';
-  html += '<h2 style="border:none;padding-top:0;margin-bottom:8px">Settlement errors</h2>';
-  if ((d.server.settleErrors||[]).length === 0) {
-    html += '<div style="color:var(--green);padding:10px;font-size:13px">No settlement errors</div>';
-  } else {
-    html += '<div class="error-log">';
-    for (const e of d.server.settleErrors) {
-      html += '<div class="error-item"><div class="time">'+new Date(e.timestamp).toLocaleString()+' — Game: '+(e.gameId||'?')+'</div><div class="msg">'+e.error+'</div></div>';
-    }
-    html += '</div>';
-  }
+        function setupCharts(distribution) {
+            if (!distribution) return;
 
-  // Stuck games
-  if ((d.stuckGames||[]).length > 0) {
-    html += '<h2 style="border:none;padding-top:12px;margin-bottom:8px">Stuck games</h2>';
-    html += '<div class="stuck-alert">';
-    for (const g of d.stuckGames) {
-      html += '<div class="stuck-item">'+g.match_id+' — status: '+g.status+' — A: '+(g.a_answered?'answered':'waiting')+', B: '+(g.b_answered?'answered':'waiting')+' — created '+ago(g.created_at)+'</div>';
-    }
-    html += '</div>';
-  }
+            const ctx = document.getElementById('resultChart');
+            if (!ctx) return;
 
-  // Recent events
-  html += '<h2 style="border:none;padding-top:12px;margin-bottom:8px">Recent server events</h2>';
-  html += '<div class="events-log">';
-  for (const ev of (d.server.recentEvents||[]).reverse()) {
-    html += '<div class="ev"><span class="t">'+new Date(ev.t).toLocaleTimeString()+'</span> '+ev.msg+'</div>';
-  }
-  if ((d.server.recentEvents||[]).length === 0) html += '<div class="ev" style="color:var(--muted)">No events since last restart</div>';
-  html += '</div>';
-  html += '</div>';
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
 
-  document.getElementById('content').innerHTML = html;
-}
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Wins', 'Draws', 'Losses'],
+                    datasets: [{
+                        data: [
+                            distribution.wins || 0,
+                            distribution.draws || 0,
+                            distribution.losses || 0
+                        ],
+                        backgroundColor: [
+                            '#00aa44',
+                            '#cccccc',
+                            '#cc0000'
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        hoverBorderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 12, weight: '500' },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = context.parsed;
+                                    const percent = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${value} (${percent}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
-function metric(label, value, sub) {
-  return '<div class="metric"><div class="label">'+label+'</div><div class="value">'+value+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
-}
-function oracleCard(label, val, cls, sub) {
-  return '<div class="oracle-card"><div class="label">'+label+'</div><div class="val '+cls+'">'+val+'</div>'+(sub?'<div class="sub" style="color:var(--muted);font-size:12px;margin-top:4px">'+sub+'</div>':'')+'</div>';
-}
-function formatUptime(s) {
-  if (s < 60) return s+'s';
-  if (s < 3600) return Math.floor(s/60)+'m '+s%60+'s';
-  return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
-}
-function switchTab(el, id) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById(id).classList.add('active');
-}
+        function renderRecentMatches(matches) {
+            if (!matches || matches.length === 0) {
+                return `
+                    <div class="table-container">
+                        <div class="table-title">Recent Matches</div>
+                        <div class="no-data">No matches yet</div>
+                    </div>
+                `;
+            }
 
-// Auto-refresh every 30s
-function startCountdown() {
-  setInterval(() => {
-    countdown--;
-    if (countdown <= 0) { loadDashboard(); countdown = 30; }
-    document.getElementById('countdown').textContent = 'Auto-refresh in '+countdown+'s';
-  }, 1000);
-}
+            const filterOptions = [
+                { label: 'All', value: 'all' },
+                { label: 'Paid', value: 'paid' },
+                { label: 'Free', value: 'free' }
+            ];
 
-loadDashboard();
-startCountdown();
-</script>
+            const matchRows = matches.map(match => `
+                <tr>
+                    <td><span class="short-wallet">${shortWallet(match.match_id || 'N/A')}</span></td>
+                    <td>${match.mode === 'solana' ? 'Paid' : 'Free'}</td>
+                    <td>${getTierLabel(match.tier)}</td>
+                    <td class="amount">${match.wager_cents ? '$' + (match.wager_cents / 100).toFixed(2) : 'N/A'}</td>
+                    <td><span class="short-wallet">${shortWallet(match.player_a || 'N/A')}</span></td>
+                    <td><span class="short-wallet">${shortWallet(match.player_b || 'N/A')}</span></td>
+                    <td><span class="badge ${getBadgeClass(match.result_a)}">${getResultText(match.result_a)}</span></td>
+                    <td class="amount ${match.payout_a > 0 ? 'positive' : 'negative'}">${match.payout_a ? '$' + (match.payout_a / 100).toFixed(2) : '-'}</td>
+                    <td>${match.tx_hash ? `<a href="https://solscan.io/tx/${match.tx_hash}?cluster=devnet" target="_blank" class="link-btn" title="${match.tx_hash}">Link</a>` : 'N/A'}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-light);">${match.settled_at ? new Date(match.settled_at).toLocaleString() : 'N/A'}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="table-container">
+                    <div class="table-title">Recent Matches</div>
+                    <div class="filter-buttons">
+                        ${filterOptions.map(opt => `<button class="filter-btn ${opt.value === 'all' ? 'active' : ''}" onclick="filterMatches('${opt.value}')">${opt.label}</button>`).join('')}
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Match ID</th>
+                                    <th>Mode</th>
+                                    <th>Tier</th>
+                                    <th>Wager</th>
+                                    <th>Player A</th>
+                                    <th>Player B</th>
+                                    <th>Result</th>
+                                    <th>Payout</th>
+                                    <th>TX</th>
+                                    <th>Settled</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matchesBody">
+                                ${matchRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOnChainMovements(movements) {
+            if (!movements || movements.length === 0) {
+                return '';
+            }
+
+            const grouped = {};
+            movements.forEach(m => {
+                if (!grouped[m.game_id]) {
+                    grouped[m.game_id] = [];
+                }
+                grouped[m.game_id].push(m);
+            });
+
+            const groups = Object.entries(grouped).map(([gameId, txs]) => {
+                const status = getMovementStatus(txs);
+                const statusClass = status.toLowerCase();
+
+                const txLines = txs.map(tx => `
+                    <div class="movement-item">
+                        ${tx.type}: ${(tx.amount / 1000000).toFixed(2)} USDC
+                        ${tx.tx_hash ? `<a href="https://solscan.io/tx/${tx.tx_hash}?cluster=devnet" target="_blank" class="link-btn" style="margin-left: 8px;">View TX</a>` : ''}
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="movements-group ${statusClass}">
+                        <div class="movement-header">
+                            <span><strong>${gameId}</strong> — ${status}</span>
+                            <span style="font-size: 0.8rem; color: var(--text-light);">${txs.length} transaction(s)</span>
+                        </div>
+                        ${txLines}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="movements-section">
+                    <div class="chart-title">On-Chain Movements (USDC)</div>
+                    ${groups}
+                </div>
+            `;
+        }
+
+        function shortWallet(addr) {
+            if (!addr || addr.length < 8) return addr;
+            return addr.substring(0, 4) + '..' + addr.substring(addr.length - 4);
+        }
+
+        function getTierLabel(tier) {
+            const tierMap = {
+                '1': '$0.10',
+                '2': '$1',
+                '3': '$10',
+                '4': '$100',
+                'none:1': '$0.10',
+                'none:2': '$1',
+                'none:3': '$10',
+                'none:4': '$100',
+                'solana:1': '$0.10',
+                'solana:2': '$1',
+                'solana:3': '$10',
+                'solana:4': '$100'
+            };
+            return tierMap[tier] || tier;
+        }
+
+        function getResultText(result) {
+            if (!result) return 'Unknown';
+            if (result.toLowerCase().includes('draw')) return 'Draw';
+            if (result.toLowerCase().includes('loss') || result === 'loss') return 'Loss';
+            if (result.toLowerCase().includes('win') || result === 'win') return 'Win';
+            return result;
+        }
+
+        function getBadgeClass(result) {
+            if (!result) return 'loss';
+            const lower = result.toLowerCase();
+            if (lower.includes('draw')) return 'draw';
+            if (lower.includes('loss') || result === 'loss') return 'loss';
+            if (lower.includes('win') || result === 'win') return 'win';
+            return 'loss';
+        }
+
+        function getMovementStatus(txs) {
+            const types = txs.map(t => t.type?.toLowerCase() || '');
+            if (types.includes('cancelled') || types.includes('refund')) return 'Cancelled';
+            if (types.includes('settled') || types.includes('payout')) return 'Settled';
+            return 'Funds Locked';
+        }
+
+        function filterMatches(mode) {
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter table rows
+            const rows = document.querySelectorAll('#matchesBody tr');
+            rows.forEach(row => {
+                const modeCell = row.cells[1].textContent.trim();
+                if (mode === 'all' ||
+                    (mode === 'paid' && modeCell === 'Paid') ||
+                    (mode === 'free' && modeCell === 'Free')) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner"></span> Refreshing...';
+                setTimeout(() => {
+                    fetchDashboardData();
+                    btn.disabled = false;
+                    btn.textContent = 'Refresh Now';
+                }, 500);
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+
+            refreshInterval = setInterval(() => {
+                const timestamp = document.getElementById('timestamp');
+                if (timestamp) {
+                    fetch(`${API_URL}?limit=50`)
+                        .then(r => r.json())
+                        .then(data => {
+                            renderDashboard(data);
+                        })
+                        .catch(e => console.error('Auto-refresh failed:', e));
+                }
+            }, 60000); // 60 seconds
+        }
+
+        // Initial load
+        window.addEventListener('load', fetchDashboardData);
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        });
+    </script>
 </body>
 </html>
