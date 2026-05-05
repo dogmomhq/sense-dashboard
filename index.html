@@ -573,19 +573,19 @@
                         <div class="stat-row" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
                             <div class="stat-box">
                                 <div class="label">SOL Balance</div>
-                                <div class="value" style="font-size: 1.6rem; color: var(--text);">${(data.oracle?.solBalance || 0).toFixed(3)}</div>
+                                <div class="value" style="font-size: 1.6rem; color: var(--text);">${parseFloat(data.oracle?.balanceSOL || '0').toFixed(3)}</div>
                                 <div class="card-detail">Oracle Wallet</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Est. Settles Left</div>
-                                <div class="value" style="font-size: 1.6rem; color: var(--text);">${Math.floor((data.oracle?.solBalance || 0) / 0.00625)}</div>
+                                <div class="value" style="font-size: 1.6rem; color: var(--text);">${data.oracle?.estimatedSettlesLeft || 0}</div>
                                 <div class="card-detail">~625K SOL per settle</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Status</div>
                                 <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center;">
-                                    <span class="status-indicator ${(data.oracle?.solBalance || 0) > 0.05 ? 'active' : 'inactive'}"></span>
-                                    <span style="font-weight: 600; color: ${(data.oracle?.solBalance || 0) > 0.05 ? 'var(--success)' : 'var(--danger)'}">${(data.oracle?.solBalance || 0) > 0.05 ? 'Operational' : 'Low Balance'}</span>
+                                    <span class="status-indicator ${parseFloat(data.oracle?.balanceSOL || '0') > 0.05 ? 'active' : 'inactive'}"></span>
+                                    <span style="font-weight: 600; color: ${parseFloat(data.oracle?.balanceSOL || '0') > 0.05 ? 'var(--success)' : 'var(--danger)'}">${parseFloat(data.oracle?.balanceSOL || '0') > 0.05 ? 'Operational' : 'Low Balance'}</span>
                                 </div>
                             </div>
                         </div>
@@ -596,27 +596,27 @@
                         <div class="stat-row">
                             <div class="stat-box">
                                 <div class="label">Total Games</div>
-                                <div class="value" style="color: var(--primary);">${data.stats?.totalGames || 0}</div>
+                                <div class="value" style="color: var(--primary);">${data.totals?.totalGames || 0}</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Games Today</div>
-                                <div class="value" style="color: var(--primary);">${data.stats?.gamesToday || 0}</div>
+                                <div class="value" style="color: var(--primary);">${data.totals?.gamesToday || 0}</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Unique Players</div>
-                                <div class="value" style="color: var(--primary);">${data.stats?.uniquePlayers || 0}</div>
+                                <div class="value" style="color: var(--primary);">${data.totals?.uniquePlayers || 0}</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Total Wagered</div>
-                                <div class="value" style="color: var(--success);">$${((data.stats?.totalWageredCents || 0) / 100).toFixed(2)}</div>
+                                <div class="value" style="color: var(--success);">$${((data.totals?.totalWageredCents || 0) / 100).toFixed(2)}</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Paid Games</div>
-                                <div class="value" style="color: var(--primary);">${data.stats?.paidGames || 0}</div>
+                                <div class="value" style="color: var(--primary);">${data.totals?.paidGames || 0}</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Free Games</div>
-                                <div class="value" style="color: var(--primary);">${data.stats?.freeGames || 0}</div>
+                                <div class="value" style="color: var(--primary);">${data.totals?.freeGames || 0}</div>
                             </div>
                         </div>
                     </div>
@@ -649,9 +649,9 @@
 
                     ${renderResultsChart(data.resultDistribution)}
 
-                    ${renderRecentMatches(data.matches || [])}
+                    ${renderRecentMatches(data.recentMatches || [])}
 
-                    ${renderOnChainMovements(data.tokenMovements || [])}
+                    ${renderOnChainMovements((data.gameMovements || []).concat(data.recentMovements || []))}
                 </div>
             `;
 
@@ -664,19 +664,21 @@
             const alerts = [];
 
             // Check for stuck games
-            if ((data.stuckGames || 0) > 0) {
+            const stuckCount = (data.stuckGames || []).length;
+            if (stuckCount > 0) {
                 alerts.push(`
                     <div class="alert danger">
-                        <strong>⚠ ${data.stuckGames} Stuck Games</strong> - Games waiting for opponent settlement. May need manual intervention.
+                        <strong>⚠ ${stuckCount} Stuck Games</strong> - Games waiting for opponent settlement. May need manual intervention.
                     </div>
                 `);
             }
 
             // Check oracle balance
-            if ((data.oracle?.solBalance || 0) < 0.05) {
+            const solBalance = parseFloat(data.oracle?.balanceSOL || '0');
+            if (solBalance < 0.05) {
                 alerts.push(`
                     <div class="alert danger">
-                        <strong>⚠ Low Oracle Balance</strong> - SOL balance below 0.05. Settlement may fail. Current: ${(data.oracle?.solBalance || 0).toFixed(4)} SOL
+                        <strong>⚠ Low Oracle Balance</strong> - SOL balance below 0.05. Settlement may fail. Current: ${solBalance.toFixed(4)} SOL
                     </div>
                 `);
             }
@@ -846,7 +848,7 @@
 
                 const txLines = txs.map(tx => `
                     <div class="movement-item">
-                        ${tx.type}: ${(tx.amount / 1000000).toFixed(2)} USDC
+                        ${tx.type}: ${(parseInt(tx.amount_raw || 0) / 1000000).toFixed(2)} USDC
                         ${tx.tx_hash ? `<a href="https://solscan.io/tx/${tx.tx_hash}?cluster=devnet" target="_blank" class="link-btn" style="margin-left: 8px;">View TX</a>` : ''}
                     </div>
                 `).join('');
@@ -877,18 +879,18 @@
 
         function getTierLabel(tier) {
             const tierMap = {
-                '1': '$0.10',
-                '2': '$1',
-                '3': '$10',
-                '4': '$100',
-                'none:1': '$0.10',
-                'none:2': '$1',
-                'none:3': '$10',
-                'none:4': '$100',
-                'solana:1': '$0.10',
-                'solana:2': '$1',
-                'solana:3': '$10',
-                'solana:4': '$100'
+                '1': '$1',
+                '2': '$10',
+                '3': '$100',
+                '4': '$0.10',
+                'none:1': '$1',
+                'none:2': '$10',
+                'none:3': '$100',
+                'none:4': '$0.10',
+                'solana:1': '$1',
+                'solana:2': '$10',
+                'solana:3': '$100',
+                'solana:4': '$0.10'
             };
             return tierMap[tier] || tier;
         }
@@ -912,8 +914,8 @@
 
         function getMovementStatus(txs) {
             const types = txs.map(t => t.type?.toLowerCase() || '');
-            if (types.includes('cancelled') || types.includes('refund')) return 'Cancelled';
-            if (types.includes('settled') || types.includes('payout')) return 'Settled';
+            if (types.includes('cancel')) return 'Cancelled';
+            if (types.includes('settle') || types.includes('settle_draw')) return 'Settled';
             return 'Funds Locked';
         }
 
